@@ -21,14 +21,14 @@ The tests are using `Qwen3.5-9B` model which I am running with [llama.cpp](https
 
 ### Packages
 
-  - **llm** : Provides a simple wrapper around the openai SDK supporting model selection and chat completions with tool calling and streaming of results. Includes non standard fields to get and send reasoning traces and retrieve llama.cpp timing stats.
-  - **agents** : A basic agent implementation supporting setting the system prompt, adding tools and managing the tool call run loop. TODO: add functions to support saving and restoring the message history, pruning the context via sliding window or summarization and prompt templates for dynamic prompt generation.
-  - **scrape** : A web page scraper built using the [playwright-go](https://github.com/playwright-community/playwright-go) library and [html-to-markdown](https://github.com/JohannesKaufmann/html-to-markdown}. Uses a headless Firefox instance.
-  - **tools/weather** : The classic weather tool example. Uses the openweathermap.org API.
-  - **tools/brave** : Web search tool using the Brave search API. Returns a list of 10 links with title and short description.
-  - **tools/browser** : Web page open and find tools using the scrape package. Returns the page text formatted with Markdown.
+  - [llm](https://github.com/jnb666/agent-go/tree/main/llm) : Provides a simple wrapper around the [openai](https://github.com/openai/openai-go) SDK supporting model selection and chat completions with tool calling and streaming of results. Includes non standard fields to get and send reasoning traces and retrieve llama.cpp timing stats.
+  - [agents](https://github.com/jnb666/agent-go/tree/main/agents) : A basic agent implementation supporting setting the system prompt, adding tools and managing the tool call run loop. TODO: add functions to support saving and restoring the message history, pruning the context via sliding window or summarization and prompt templates for dynamic prompt generation.
+  - [scrape](https://github.com/jnb666/agent-go/tree/main/scrape) : A web page scraper built using the [playwright-go](https://github.com/playwright-community/playwright-go) and [html-to-markdown](https://github.com/JohannesKaufmann/html-to-markdown}. Uses a headless Firefox instance.
+  - [tools/weather](https://github.com/jnb666/agent-go/tree/main/tools/weather) : The classic weather tool example. Uses the openweathermap.org API.
+  - [tools/brave](https://github.com/jnb666/agent-go/tree/main/tools/brave) : Web search tool using the Brave search API. Returns a list of 10 links with title and short description.
+  - [tools/browser](https://github.com/jnb666/agent-go/tree/main/tools/browser) : Web page open and find tools using the scrape package. Returns the page text formatted with Markdown.
 
 ### Example programs
 
-  - **cmd/chat** : a simple command line chat app using the llm package.
-  - **cmd/tools** : extends the chat app to use the agents loop with the weather or browser tools.
+  - [cmd/chat](https://github.com/jnb666/agent-go/tree/main/cmd/chat) : a simple command line chat app using the llm package.
+  - [cmd/tools](https://github.com/jnb666/agent-go/tree/main/cmd/tools) : extends the chat app to use the agents loop with the weather or browser tools.
