@@ -1,0 +1,5 @@
+TODO
+BENCHMARKS
+**/*.DS_Store
+.env
+.python-version

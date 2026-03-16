@@ -1,0 +1,45 @@
+package llm
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/jnb666/agent-go/util"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var testModel = "Qwen3.5-9B"
+
+func init() {
+	log.SetLevel(log.InfoLevel)
+}
+
+func TestListModels(t *testing.T) {
+	models, err := ListModels(context.Background())
+	require.NoError(t, err)
+	t.Log(util.Pretty(models))
+	// check model used in the tests
+	assert.Contains(t, strings.Join(models, ","), testModel)
+}
+
+func TestNewModel(t *testing.T) {
+	m, err := NewModel(context.Background(), testModel)
+	require.NoError(t, err)
+	t.Logf("model ID=%q  baseURL=%q server=%q", m.id, m.baseURL, m.server)
+	assert.Contains(t, m.ID(), testModel)
+	assert.Equal(t, "http://deepthought:8080/v1", m.BaseURL())
+	assert.Equal(t, "llamacpp", m.Server())
+	assert.Equal(t, "reasoning_content", m.reasoning)
+}
+
+func TestModelOptions(t *testing.T) {
+	m, err := NewModel(context.Background(), testModel)
+	require.NoError(t, err)
+	m.SetOptions(WithTemperature(0.8), WithTopP(0.95), WithTopK(20), WithReasoningEffort("medium"))
+	opts := util.Pretty(m.Options(), util.Compact)
+	t.Log(opts)
+	assert.Equal(t, `{reasoning_effort: "medium", temperature: 0.8, top_k: 20, top_p: 0.95}`, opts)
+}
