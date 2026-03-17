@@ -10,6 +10,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/jnb666/agent-go/llm"
 	"github.com/jnb666/agent-go/util"
+	"github.com/openai/openai-go/v3/shared"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("Connected to %s at %s", model.ID(), model.BaseURL())
-	model.SetOptions(llm.WithReasoningEffort(reasoning))
+	model.SetOptions(llm.WithReasoningEffort(shared.ReasoningEffort(reasoning)))
 	if !nostream {
 		model.SetStreaming(true, printContent, printReasoning)
 	}

@@ -165,7 +165,9 @@ func (m *Model) generateStream(ctx context.Context, req openai.ChatCompletionNew
 			chunkError = err
 		}
 	}
-	m.streamContent("", contentChunks, true)
+	if len(acc.ChatCompletion.Choices) > 0 && acc.ChatCompletion.Choices[0].Message.Content != "" {
+		m.streamContent("", contentChunks, true)
+	}
 	return acc, errors.Join(stream.Err(), chunkError)
 }
 

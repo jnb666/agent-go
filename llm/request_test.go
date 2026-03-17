@@ -53,7 +53,7 @@ var toolDef = FunctionDefinition{
 func TestRequestSimple(t *testing.T) {
 	m, err := NewModel(context.Background(), "")
 	require.NoError(t, err)
-	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20))
+	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20), WithPresencePenalty(1.5), WithRepetitionPenalty(1.0), WithReasoningEffort("none"))
 
 	req, err := newRequest(m.id, m.config, testMessages)
 	require.NoError(t, err)
@@ -66,10 +66,15 @@ func TestRequestSimple(t *testing.T) {
 			{"role": "assistant", "content": "Hello! How can I help you today?"},
 			{"role": "user", "content": "How many r's are there in Strawberry?"},
 		},
-		"model":       m.id,
-		"temperature": 1.0,
-		"top_p":       0.95,
-		"top_k":       20,
+		"model":              m.id,
+		"temperature":        1.0,
+		"top_p":              0.95,
+		"top_k":              20,
+		"presence_penalty":   1.5,
+		"repetition_penalty": 1.0,
+		"chat_template_kwargs": map[string]any{
+			"enable_thinking": false,
+		},
 	}
 	assert.JSONEq(t, toJSON(expect), toJSON(req))
 }
@@ -77,7 +82,7 @@ func TestRequestSimple(t *testing.T) {
 func TestRequestWithTools(t *testing.T) {
 	m, err := NewModel(context.Background(), "")
 	require.NoError(t, err)
-	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20), WithReasoningEffort("medium"), WithTools(toolDef))
+	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20), WithPresencePenalty(1.5), WithRepetitionPenalty(1.0), WithReasoningEffort("medium"), WithTools(toolDef))
 
 	req, err := newRequest(m.id, m.config, toolMessages)
 	require.NoError(t, err)
@@ -102,6 +107,8 @@ func TestRequestWithTools(t *testing.T) {
 		"temperature":          1.0,
 		"top_p":                0.95,
 		"top_k":                20,
+		"presence_penalty":     1.5,
+		"repetition_penalty":   1.0,
 		"reasoning_effort":     "medium",
 		"chat_template_kwargs": map[string]any{"reasoning_effort": "medium"},
 		"parallel_tool_calls":  true,

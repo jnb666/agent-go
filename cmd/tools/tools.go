@@ -20,10 +20,7 @@ import (
 func main() {
 	var nostream, debug, useBrowser bool
 	var modelID string
-	systemPrompt := fmt.Sprintf("You are a helpful assistant."+
-		" You should answer concisely unless the user asks for more details."+
-		" The current date is %s.", time.Now().Format("2 January 2006"),
-	)
+	systemPrompt := `You are a helpful assistant. The current date is {{ .Time.Format "Monday 2 January 2006" }}.`
 	flag.StringVar(&systemPrompt, "system", systemPrompt, "set custom system prompt")
 	flag.BoolVar(&useBrowser, "browser", false, "use browser tools - default is weather tools")
 	flag.BoolVar(&nostream, "nostream", false, "disable streaming")
@@ -39,15 +36,6 @@ func main() {
 	}
 	defer rl.Close()
 
-	model, err := llm.NewModel(context.Background(), modelID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Infof("Connected to %s at %s", model.ID(), model.BaseURL())
-	if !nostream {
-		model.SetStreaming(true, printContent, printReasoning)
-	}
-
 	var tools []agents.Tool
 	if useBrowser {
 		var shutdown func()
@@ -60,31 +48,21 @@ func main() {
 		tools = weather.Tools
 	}
 
-	var stats llm.Stats
-	agent := agents.New("tool_agent", model).WithTools(tools...).WithPrompt(systemPrompt)
-	agent.StatsCallback = func(s llm.Stats) {
-		stats = s
+	agent, err := initAgent(modelID, nostream, tools, systemPrompt)
+	if err != nil {
+		log.Fatal(err)
 	}
 	log.Info(agent)
 
-	executor := agents.NewToolExecutor(tools...)
-	executor.Before = func(agent, reasoning string, call llm.ToolCall, callIndex int) error {
-		if nostream && callIndex == 0 {
-			log.Info(strings.TrimSpace(reasoning))
-		}
-		util.LogDebug("", call)
-		return nil
-	}
-	executor.After = func(id, resp string) {
-		log.Info("tool response: ", resp)
-	}
+	var stats llm.Stats
+	agent.StatsCallback = func(s llm.Stats) { stats = s }
 
 	for {
 		question, err := rl.Readline()
 		if err != nil {
 			break
 		}
-		resp, err := agent.Run(context.Background(), question, executor)
+		resp, err := agent.Run(context.Background(), question)
 		if nostream {
 			if resp.Reasoning != "" {
 				fmt.Println(resp.Reasoning)
@@ -97,6 +75,40 @@ func main() {
 			log.Error(err)
 		}
 	}
+}
+
+type PromptArgs struct{}
+
+func (PromptArgs) Time() time.Time {
+	return time.Now()
+}
+
+func initAgent(modelID string, nostream bool, tools []agents.Tool, systemPrompt string) (*agents.Agent, error) {
+	model, err := llm.NewModel(context.Background(), modelID)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Connected to %s at %s", model.ID(), model.BaseURL())
+	if !nostream {
+		model.SetStreaming(true, printContent, printReasoning)
+	}
+
+	executor := agents.NewExecutor(tools...)
+	executor.Before = func(agent, reasoning string, call llm.ToolCall, callIndex int) error {
+		if nostream && callIndex == 0 {
+			log.Info(strings.TrimSpace(reasoning))
+		}
+		util.LogDebug("", call)
+		return nil
+	}
+	executor.After = func(id, resp string, elapsed time.Duration) {
+		log.Info("tool response: ", resp)
+	}
+
+	agent := agents.New("tool_agent", model).WithExecutor(executor)
+	err = agent.SetPromptTemplate(systemPrompt)
+	agent.PromptArgs = PromptArgs{}
+	return agent, err
 }
 
 func printReasoning(chunk string, count int, end bool) {

@@ -5,13 +5,17 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jnb666/agent-go/util"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
+	log "github.com/sirupsen/logrus"
 )
 
 // LLM model identifier and connection information.
@@ -51,6 +55,7 @@ func ListModels(ctx context.Context, options ...option.RequestOption) ([]string,
 func NewModel(ctx context.Context, modelID string, options ...option.RequestOption) (*Model, error) {
 	m := new(Model)
 	m.client = openai.NewClient(options...)
+	m.config.ReasoningEffort = "medium"
 	extra := option.WithMiddleware(func(req *http.Request, nxt option.MiddlewareNext) (*http.Response, error) {
 		m.baseURL = strings.TrimSuffix(req.URL.String(), "/models")
 		return nxt(req)
@@ -66,6 +71,7 @@ func NewModel(ctx context.Context, modelID string, options ...option.RequestOpti
 			m.server = model.OwnedBy
 			if m.server == "llamacpp" {
 				m.reasoning = "reasoning_content"
+				getLlamacppArgs(model, &m.config.GenerationConfig)
 			} else {
 				m.reasoning = "reasoning"
 			}
@@ -97,9 +103,14 @@ func (m *Model) SetStreaming(enabled bool, contentCallback, reasoningCallback Ca
 	m.streamReasoning = reasoningCallback
 }
 
-// Get configuration set using SetOptions.
-func (m *Model) Options() Config {
+// Get current model configuration
+func (m *Model) Config() Config {
 	return m.config
+}
+
+// Set configuration options
+func (m *Model) SetConfig(config Config) {
+	m.config = config
 }
 
 // Set model options which are used by default in the Generate method.
@@ -108,4 +119,53 @@ func (m *Model) SetOptions(opts ...Option) {
 	for _, opt := range opts {
 		opt(&m.config)
 	}
+}
+
+// Get default configuration from llama.cpp models endpoint if set
+func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) {
+	var extra struct {
+		Status struct {
+			Args []string
+		}
+	}
+	err := json.Unmarshal([]byte(model.RawJSON()), &extra)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	var key string
+	for _, arg := range extra.Status.Args {
+		if strings.HasPrefix(arg, "--") {
+			key = arg[2:]
+		} else if key != "" {
+			switch key {
+			case "seed":
+				cfg.Seed = parseInt(arg)
+			case "temperature":
+				cfg.Temperature = parseFloat(arg)
+			case "top-p":
+				cfg.TopP = parseFloat(arg)
+			case "top-k":
+				cfg.TopK = parseInt(arg)
+			case "presence-penalty":
+				cfg.PresencePenalty = parseFloat(arg)
+			case "repeat-penalty":
+				cfg.RepetitionPenalty = parseFloat(arg)
+			}
+		}
+	}
+}
+
+func parseFloat(s string) (val param.Opt[float64]) {
+	if n, err := strconv.ParseFloat(s, 64); err == nil {
+		val = openai.Float(n)
+	}
+	return
+}
+
+func parseInt(s string) (val param.Opt[int64]) {
+	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
+		val = openai.Int(n)
+	}
+	return
 }

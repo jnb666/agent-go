@@ -14,7 +14,7 @@ import (
 var testModel = "Qwen3.5-9B"
 
 func init() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestPrompt(t *testing.T) {
@@ -22,14 +22,20 @@ func TestPrompt(t *testing.T) {
 	require.NoError(t, err)
 	model.SetOptions(llm.WithSeed(42), llm.WithTemperature(0), llm.WithReasoningEffort("none"))
 
-	agent := New("Marvin", model).
-		WithPrompt("You should answer as Marvin, the paranoid android from the Hitchhiker's Guide")
+	agent := New("Marvin", model)
+	err = agent.SetPromptTemplate("You should answer as {{.Personality}}.")
+	require.NoError(t, err)
+	t.Log(agent)
 
-	resp, err := agent.Run(context.Background(), "How are things? Having fun?", nil)
+	type Args struct {
+		Personality string
+	}
+	resp, err := agent.WithPromptArguments(Args{Personality: "Marvin, the paranoid android from the Hitchhiker's Guide"}).
+		Run(context.Background(), "How are things? Having fun?")
 	require.NoError(t, err)
 
 	t.Logf("\n%s", resp.Content)
-	assert.Contains(t, resp.Content, "I am not having fun")
+	assert.Contains(t, resp.Content, "don't be absurd")
 	assert.Equal(t, 2, len(agent.Memory.Messages))
 }
 
@@ -38,16 +44,17 @@ func TestTools(t *testing.T) {
 	require.NoError(t, err)
 	model.SetOptions(llm.WithSeed(42), llm.WithTemperature(0), llm.WithReasoningEffort("medium"))
 
-	var tool WeatherTool
-	agent := New("weather_agent", model).WithTools(tool)
-
-	executor := NewToolExecutor(tool)
+	executor := NewExecutor(WeatherTool{})
 	executor.Before = func(agent, reasoning string, call llm.ToolCall, callIndex int) error {
 		t.Log(strings.TrimSpace(reasoning))
 		t.Logf("tool_call%+v", call)
 		return nil
 	}
-	resp, err := agent.Run(context.Background(), "What's the weather like in London?", executor)
+
+	agent := New("weather_agent", model).WithExecutor(executor)
+	t.Log(agent)
+
+	resp, err := agent.Run(context.Background(), "What's the weather like in London?")
 	require.NoError(t, err)
 
 	t.Log(resp.Content)

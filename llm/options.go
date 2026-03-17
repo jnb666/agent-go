@@ -10,6 +10,11 @@ import (
 
 // Model configuration options.
 type Config struct {
+	GenerationConfig
+	Tools []FunctionDefinition `json:"tools,omitzero"`
+}
+
+type GenerationConfig struct {
 	Seed                     param.Opt[int64]       `json:"seed,omitzero"`
 	Temperature              param.Opt[float64]     `json:"temperature,omitzero"`
 	TopP                     param.Opt[float64]     `json:"top_p,omitzero"`
@@ -17,7 +22,6 @@ type Config struct {
 	PresencePenalty          param.Opt[float64]     `json:"presence_penalty,omitzero"`
 	RepetitionPenalty        param.Opt[float64]     `json:"repetition_penalty,omitzero"`
 	ReasoningEffort          shared.ReasoningEffort `json:"reasoning_effort,omitzero"`
-	Tools                    []FunctionDefinition   `json:"tools,omitzero"`
 	DisableParallelToolCalls bool                   `json:"disable_parallel_tool_calls,omitzero"`
 }
 
@@ -73,7 +77,7 @@ func WithRepetitionPenalty(penalty float64) Option {
 }
 
 // Standard options are low, medium or high or set to none to disable thinking.
-func WithReasoningEffort(effort string) Option {
+func WithReasoningEffort(effort shared.ReasoningEffort) Option {
 	return func(c *Config) {
 		c.ReasoningEffort = shared.ReasoningEffort(effort)
 	}

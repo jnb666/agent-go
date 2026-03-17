@@ -2,9 +2,12 @@
 package agents
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/jnb666/agent-go/llm"
 )
@@ -15,21 +18,16 @@ type Tool interface {
 	Call(ctx context.Context, args string) string
 }
 
-// An Executor is used by the agent to call any external system.
-// In case of an error the response should return details of the failure which the agent can process.
-type Executor interface {
-	CallTool(ctx context.Context, agent, reasoning string, call llm.ToolCall) string
-}
-
 // An agent drives model generation with a set of registered tools.
 type Agent struct {
-	Name          string
-	Model         *llm.Model
-	Prompt        string
-	Memory        Memory
-	Tools         []llm.FunctionDefinition
-	StatsCallback func(llm.Stats)
-	MaxRetries    int
+	Name           string
+	Model          *llm.Model
+	Memory         *Memory
+	PromptTemplate *template.Template
+	PromptArgs     any
+	Executor       Executor
+	StatsCallback  func(llm.Stats)
+	MaxRetries     int
 }
 
 // Create a new agent using the given model.
@@ -37,25 +35,30 @@ func New(name string, model *llm.Model) *Agent {
 	return &Agent{
 		Name:       name,
 		Model:      model,
+		Memory:     NewMemory(),
 		MaxRetries: 2,
 	}
 }
 
-func (a *Agent) WithPrompt(prompt string) *Agent {
-	a.Prompt = prompt
+func (a *Agent) SetPromptTemplate(promptTemplate string) error {
+	var err error
+	a.PromptTemplate, err = template.New("prompt").Parse(promptTemplate)
+	return err
+}
+
+func (a *Agent) WithPromptArguments(args any) *Agent {
+	a.PromptArgs = args
 	return a
 }
 
-func (a *Agent) WithTools(tools ...Tool) *Agent {
-	for _, tool := range tools {
-		a.Tools = append(a.Tools, tool.Definition())
-	}
+func (a *Agent) WithExecutor(exec Executor) *Agent {
+	a.Executor = exec
 	return a
 }
 
 func (a *Agent) String() string {
 	var toolNames []string
-	for _, tool := range a.Tools {
+	for _, tool := range a.Executor.ToolDefinitions() {
 		toolNames = append(toolNames, tool.Name)
 	}
 	return fmt.Sprintf("Agent:%s Model:%s Tools:%s", a.Name, a.Model.ID(), strings.Join(toolNames, ","))
@@ -63,11 +66,15 @@ func (a *Agent) String() string {
 
 // Add the user message to the messages list and run the event loop calling tools as needed until
 // either the final content is generated or a fatal error occurs.
-func (a *Agent) Run(ctx context.Context, userMessage string, exec Executor) (final llm.Message, err error) {
+func (a *Agent) Run(ctx context.Context, userMessage string) (final llm.Message, err error) {
 	a.Memory.Append(llm.Message{Role: "user", Content: userMessage})
 	retry := 0
 	for {
-		r, err := a.Model.Generate(ctx, a.Memory.WithPrompt(a.Prompt), llm.WithTools(a.Tools...))
+		prompt, err := execTemplate(a.PromptTemplate, a.PromptArgs)
+		if err != nil {
+			return llm.Message{}, err
+		}
+		r, err := a.Model.Generate(ctx, a.Memory.WithPrompt(prompt), llm.WithTools(a.Executor.ToolDefinitions()...))
 		if err != nil {
 			return llm.Message{}, err
 		}
@@ -87,35 +94,49 @@ func (a *Agent) Run(ctx context.Context, userMessage string, exec Executor) (fin
 				continue
 			}
 		}
-		if exec == nil {
-			return llm.Message{}, fmt.Errorf("Run: executor not defined")
-		}
 		retry = 0
 		a.Memory.Append(r.Message)
 		for _, call := range r.Message.ToolCalls {
-			resp := exec.CallTool(ctx, a.Name, r.Message.Reasoning, call)
-			if err := ctx.Err(); err != nil {
-				resp = err.Error()
-			}
+			resp := a.Executor.CallTool(ctx, a.Name, r.Message.Reasoning, call)
 			a.Memory.Append(llm.Message{Role: "tool", Content: resp, ToolCallID: call.ID})
 		}
 	}
 }
 
-// ToolExecutor is a simple executor used to call tools. There are two optional callbacks:
+func execTemplate(t *template.Template, args any) (string, error) {
+	if t == nil {
+		return "", nil
+	}
+	var buf bytes.Buffer
+	err := t.Execute(&buf, args)
+	return buf.String(), err
+}
+
+// Executor is used to call tools. There are two optional callbacks:
 // Before is called before each tool call - if it returns an error the call is skipped.
 // After is called with the response from the tool
-type ToolExecutor struct {
+type Executor struct {
 	Tools  []Tool
 	Before func(agent, reasoning string, call llm.ToolCall, callNumber int) error
-	After  func(id, response string)
+	After  func(id, response string, elapsed time.Duration)
 }
 
-func NewToolExecutor(tools ...Tool) ToolExecutor {
-	return ToolExecutor{Tools: tools}
+func NewExecutor(tools ...Tool) Executor {
+	return Executor{Tools: tools}
 }
 
-func (t ToolExecutor) CallTool(ctx context.Context, agent, reasoning string, call llm.ToolCall) string {
+func (t Executor) ToolDefinitions() []llm.FunctionDefinition {
+	var defs []llm.FunctionDefinition
+	for _, tool := range t.Tools {
+		defs = append(defs, tool.Definition())
+	}
+	return defs
+}
+
+func (t Executor) CallTool(ctx context.Context, agent, reasoning string, call llm.ToolCall) string {
+	if ctx.Err() != nil {
+		return "Error: " + ctx.Err().Error()
+	}
 	for i, tool := range t.Tools {
 		if tool.Definition().Name == call.Name {
 			if t.Before != nil {
@@ -124,9 +145,10 @@ func (t ToolExecutor) CallTool(ctx context.Context, agent, reasoning string, cal
 					return err.Error()
 				}
 			}
+			start := time.Now()
 			resp := tool.Call(ctx, call.Arguments)
 			if t.After != nil {
-				t.After(call.ID, resp)
+				t.After(call.ID, resp, time.Since(start))
 			}
 			return resp
 		}

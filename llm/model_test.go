@@ -14,7 +14,7 @@ import (
 var testModel = "Qwen3.5-9B"
 
 func init() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestListModels(t *testing.T) {
@@ -38,8 +38,8 @@ func TestNewModel(t *testing.T) {
 func TestModelOptions(t *testing.T) {
 	m, err := NewModel(context.Background(), testModel)
 	require.NoError(t, err)
-	m.SetOptions(WithTemperature(0.8), WithTopP(0.95), WithTopK(20), WithReasoningEffort("medium"))
-	opts := util.Pretty(m.Options(), util.Compact)
+	m.SetOptions(WithTemperature(0.8), WithTopP(0.95), WithTopK(20), WithPresencePenalty(1.5), WithRepetitionPenalty(1.0))
+	opts := util.Pretty(m.Config(), util.Compact)
 	t.Log(opts)
-	assert.Equal(t, `{reasoning_effort: "medium", temperature: 0.8, top_k: 20, top_p: 0.95}`, opts)
+	assert.Equal(t, `{presence_penalty: 1.5, reasoning_effort: "medium", repetition_penalty: 1, temperature: 0.8, top_k: 20, top_p: 0.95}`, opts)
 }
