@@ -15,7 +15,7 @@ func TestBrowserOpen(t *testing.T) {
 	require.NoError(t, err)
 	defer browser.Shutdown()
 
-	resp := Open{browser: browser}.Call(context.Background(), marshal(map[string]any{
+	resp := Open{browser}.Call(context.Background(), marshal(map[string]any{
 		"url": "https://itsabanana.dev/posts/local_llm_hosting-part1/",
 	}))
 	t.Logf("response:\n%s", resp)
@@ -32,7 +32,7 @@ func TestBrowserScroll(t *testing.T) {
 	require.NoError(t, err)
 	defer browser.Shutdown()
 
-	resp := Open{browser: browser}.Call(context.Background(), marshal(map[string]any{
+	resp := Open{browser}.Call(context.Background(), marshal(map[string]any{
 		"url":  "https://itsabanana.dev/posts/local_llm_hosting-part1/",
 		"line": 50,
 	}))
@@ -50,11 +50,11 @@ func TestBrowserFind(t *testing.T) {
 	require.NoError(t, err)
 	defer browser.Shutdown()
 
-	resp := Open{browser: browser}.Call(context.Background(), marshal(map[string]any{
+	Open{browser}.Call(context.Background(), marshal(map[string]any{
 		"url": "https://itsabanana.dev/posts/local_llm_hosting-part3/",
 	}))
 
-	resp = Find{browser: browser}.Call(context.Background(), marshal(map[string]any{
+	resp := Find{browser}.Call(context.Background(), marshal(map[string]any{
 		"pattern": "OWM_API_KEY",
 	}))
 	t.Logf("response:\n%s", resp)

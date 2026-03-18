@@ -30,5 +30,6 @@ The tests are using `Qwen3.5-9B` model which I am running with [llama.cpp](https
 
 ### Example programs
 
-  - [cmd/chat](https://github.com/jnb666/agent-go/tree/main/cmd/chat) : a simple command line chat app using the llm package.
-  - [cmd/tools](https://github.com/jnb666/agent-go/tree/main/cmd/tools) : extends the chat app to use the agents loop with the weather or browser tools.
+  - [cmd/chat](https://github.com/jnb666/agent-go/tree/main/cmd/chat) : A simple command line chat app using the llm package.
+  - [cmd/tools](https://github.com/jnb666/agent-go/tree/main/cmd/tools) : Extends the chat app to use the agents loop with the weather or browser tools.
+  - [cmd/webchat](https://github.com/jnb666/agent-go/tree/main/cmd/webchat) : Web based chat app with Brave search and browser tools.

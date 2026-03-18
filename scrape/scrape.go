@@ -174,7 +174,7 @@ func (b *Browser) scrape(ctx context.Context, uri string, opt Options) (r Respon
 		}
 	}()
 	go func() {
-		_ = <-ctx.Done()
+		<-ctx.Done()
 		aborted = true
 		c.Close()
 	}()

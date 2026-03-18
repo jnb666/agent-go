@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -16,6 +15,15 @@ var (
 	Client    = http.Client{Timeout: 30 * time.Second}
 	UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:148.0) Gecko/20100101 Firefox/148.0"
 )
+
+type HTTPError struct {
+	Code   int
+	Status string
+}
+
+func (e HTTPError) Error() string {
+	return "HTTP error: " + e.Status
+}
 
 type Header struct {
 	Key   string
@@ -79,7 +87,7 @@ func do(req *http.Request) ([]byte, http.Header, error) {
 		return nil, nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, nil, fmt.Errorf("HTTP error: %s", resp.Status)
+		return nil, nil, HTTPError{Code: resp.StatusCode, Status: resp.Status}
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)

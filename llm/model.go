@@ -26,10 +26,10 @@ type Model struct {
 	streamContent   CallbackFunc
 	streamReasoning CallbackFunc
 	id              string
-	alias           string
 	baseURL         string
 	server          string
 	reasoning       string
+	contextSize     int
 }
 
 // Callback called from streaming generation. An empty call with end=true is sent after the last chunk.
@@ -42,7 +42,7 @@ func ListModels(ctx context.Context, options ...option.RequestOption) ([]string,
 	if err != nil {
 		return nil, err
 	}
-	util.LogDebug("== models ==\n", models)
+	util.LogTrace("== models ==\n", models)
 	var ids []string
 	for _, model := range models.Data {
 		ids = append(ids, model.ID)
@@ -64,14 +64,14 @@ func NewModel(ctx context.Context, modelID string, options ...option.RequestOpti
 	if err != nil {
 		return nil, err
 	}
-	util.LogDebug("== models ==\n", models)
+	util.LogTrace("== models ==\n", models)
 	for _, model := range models.Data {
 		if modelID == "" || strings.Contains(model.ID, modelID) {
 			m.id = model.ID
 			m.server = model.OwnedBy
 			if m.server == "llamacpp" {
 				m.reasoning = "reasoning_content"
-				getLlamacppArgs(model, &m.config.GenerationConfig)
+				m.contextSize = getLlamacppArgs(model, &m.config.GenerationConfig)
 			} else {
 				m.reasoning = "reasoning"
 			}
@@ -94,6 +94,11 @@ func (m *Model) BaseURL() string {
 // Server name - e.g. llamacpp, vllm etc. - from /models response
 func (m *Model) Server() string {
 	return m.server
+}
+
+// Model context size - if known
+func (m *Model) ContextSize() int {
+	return m.contextSize
 }
 
 // Enable or disable streaming option and set callback functions if not nil
@@ -122,7 +127,7 @@ func (m *Model) SetOptions(opts ...Option) {
 }
 
 // Get default configuration from llama.cpp models endpoint if set
-func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) {
+func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) (contextSize int) {
 	var extra struct {
 		Status struct {
 			Args []string
@@ -133,6 +138,7 @@ func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) {
 		log.Error(err)
 		return
 	}
+	util.LogTrace("llamacpp args:", extra.Status.Args)
 	var key string
 	for _, arg := range extra.Status.Args {
 		if strings.HasPrefix(arg, "--") {
@@ -151,9 +157,12 @@ func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) {
 				cfg.PresencePenalty = parseFloat(arg)
 			case "repeat-penalty":
 				cfg.RepetitionPenalty = parseFloat(arg)
+			case "ctx-size":
+				contextSize, _ = strconv.Atoi(arg)
 			}
 		}
 	}
+	return
 }
 
 func parseFloat(s string) (val param.Opt[float64]) {

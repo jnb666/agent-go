@@ -11,7 +11,7 @@ import (
 
 // Memory stores the current state associated with an agent.
 type Memory struct {
-	ID       string        `json:"ID"`
+	ID       string        `json:"id"`
 	Messages []llm.Message `json:"messages"`
 }
 

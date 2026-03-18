@@ -14,7 +14,7 @@ import (
 var testModel = "Qwen3.5-9B"
 
 func init() {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 }
 
 func TestListModels(t *testing.T) {
@@ -28,7 +28,7 @@ func TestListModels(t *testing.T) {
 func TestNewModel(t *testing.T) {
 	m, err := NewModel(context.Background(), testModel)
 	require.NoError(t, err)
-	t.Logf("model ID=%q  baseURL=%q server=%q", m.id, m.baseURL, m.server)
+	t.Logf("model ID=%q  baseURL=%q server=%q context=%d", m.id, m.baseURL, m.server, m.contextSize)
 	assert.Contains(t, m.ID(), testModel)
 	assert.Equal(t, "http://deepthought:8080/v1", m.BaseURL())
 	assert.Equal(t, "llamacpp", m.Server())

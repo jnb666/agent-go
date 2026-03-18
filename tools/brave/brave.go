@@ -4,8 +4,10 @@ package brave
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -22,6 +24,7 @@ var (
 	Country    = "gb"
 	Language   = "en"
 	NumResults = 10
+	MaxRetries = 3
 )
 
 // Tool to search on the web - implements agent.Tool interface
@@ -102,7 +105,19 @@ func (t *Search) search(ctx context.Context, apiKey, query string, topn int) (re
 		"https://api.search.brave.com/res/v1/web/search?q=%s&count=%d&country=%s&search_lang=%s&text_decorations=false",
 		url.QueryEscape(query), topn, Country, Language,
 	)
-	h, err := util.GetWithHeaders(ctx, uri, &resp, util.Header{Key: "X-Subscription-Token", Value: apiKey})
+	var h http.Header
+	for range MaxRetries {
+		h, err = util.GetWithHeaders(ctx, uri, &resp, util.Header{Key: "X-Subscription-Token", Value: apiKey})
+		if status, ok := errors.AsType[util.HTTPError](err); ok && status.Code == 429 {
+			log.Warnf("%v - retrying", err)
+			time.Sleep(time.Second)
+		} else {
+			break
+		}
+	}
+	if err != nil {
+		return resp, err
+	}
 	limits := ratelimitHeaders{
 		Limit:     parseHeader(h.Get("X-RateLimit-Limit")),
 		Remaining: parseHeader(h.Get("X-RateLimit-Remaining")),
@@ -111,9 +126,6 @@ func (t *Search) search(ctx context.Context, apiKey, query string, topn int) (re
 	log.Debugf("Brave search rate limits: %+v", limits)
 	if limits.Remaining[0] == 0 {
 		t.nextSearch = time.Now().Add(time.Duration(limits.Reset[0]) * time.Second)
-	}
-	if err != nil {
-		return resp, err
 	}
 	if len(resp.Web.Results) == 0 {
 		return resp, fmt.Errorf("no search results returned")

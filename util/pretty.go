@@ -52,6 +52,13 @@ func LogDebug(msg string, val any) {
 	}
 }
 
+// Log msg followed by Pretty(val) if logrus trace level is set.
+func LogTrace(msg string, val any) {
+	if log.GetLevel() >= log.TraceLevel {
+		log.Trace(msg, Pretty(val))
+	}
+}
+
 func pretty(w io.Writer, val any, indent string, format PrettyFormat) {
 	switch t := val.(type) {
 	case nil:
@@ -68,7 +75,7 @@ func pretty(w io.Writer, val any, indent string, format PrettyFormat) {
 		fmt.Fprint(w, "[")
 		for i, elem := range t {
 			separator(w, indent+"  ", i == 0, format)
-			pretty(w, elem, indent, format)
+			pretty(w, elem, indent+"  ", format)
 		}
 		separator(w, indent, true, format)
 		fmt.Fprint(w, "]")
