@@ -47,11 +47,12 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 		ws:    ws,
 		input: make(chan Request),
 	}
-	c.Config, c.error = initModelConfig(ctx)
+	var server string
+	c.Config, server, c.error = initModelConfig(ctx)
 	if c.error != nil {
 		return nil
 	}
-	err := loadJSON("config.json", &c.Config)
+	err := loadJSON("config_"+server+".json", &c.Config)
 	if err != nil {
 		log.Warn(err)
 	}
@@ -65,20 +66,21 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 }
 
 // Initialise default model config settings
-func initModelConfig(ctx context.Context) (cfg Config, err error) {
+func initModelConfig(ctx context.Context) (cfg Config, server string, err error) {
 	cfg = DefaultConfig()
 	modelIDs, err := llm.ListModels(ctx)
 	if err != nil {
-		return cfg, err
+		return cfg, "", err
 	}
 	for _, id := range modelIDs {
 		model, err := llm.NewModel(ctx, id)
 		if err != nil {
-			return cfg, err
+			return cfg, "", err
 		}
 		cfg.Models[id] = model.Config().GenerationConfig
+		server = model.Server()
 	}
-	return cfg, nil
+	return cfg, server, nil
 }
 
 // Update current config - loads model and initialises agent
@@ -105,7 +107,7 @@ func (c *Client) updateConfig(ctx context.Context) {
 		}
 	}
 	log.Info(c.agent)
-	c.error = saveJSON("config.json", c.Config)
+	c.error = saveJSON("config_"+model.Server()+".json", c.Config)
 }
 
 // Load tools and poll websocket for updates
@@ -114,9 +116,13 @@ func (c *Client) run(ctx context.Context) {
 		for {
 			var req Request
 			req.Error = c.ws.ReadJSON(&req)
-			c.input <- req
 			if req.Error != nil {
 				break
+			}
+			if req.Type == "ping" {
+				c.ws.WriteJSON(Response{Type: "pong"})
+			} else {
+				c.input <- req
 			}
 		}
 	}()
@@ -181,8 +187,6 @@ func (c *Client) handleRequest(ctx context.Context, req Request) {
 		c.loadChat(req.ID)
 	case "delete":
 		c.deleteChat(req.ID)
-	case "ping":
-		c.send(Response{Type: "pong"})
 	default:
 		c.error = fmt.Errorf("invalid request type %q", req.Type)
 	}
@@ -199,7 +203,7 @@ func (c *Client) listChats() {
 	var list []Item
 	for i := len(entries) - 1; i >= 0 && i >= len(entries)-MaxConversations; i-- {
 		e := entries[i]
-		if e.Type().IsRegular() && e.Name() != "config.json" && strings.HasSuffix(e.Name(), ".json") {
+		if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), "config") && strings.HasSuffix(e.Name(), ".json") {
 			var conv agents.Memory
 			if err := loadJSON(e.Name(), &conv); err != nil {
 				log.Errorf("Error reading %s: %v", e.Name(), err)
@@ -250,11 +254,12 @@ func (c *Client) streamContent(chunk string, count int, end bool) {
 	if end || strings.Contains(chunk, "\n") {
 		var msg Message
 		msg.Role = "assistant"
-		msg.Content = toHTML(c.content, msg.Role)
-		msg.Update = c.updateContent
-		msg.End = end
-		c.send(Response{Type: "chat", Message: &msg})
-		c.updateContent = true
+		if msg.Content = toHTML(c.content, msg.Role); msg.Content != "" {
+			msg.Update = c.updateContent
+			msg.End = end
+			c.send(Response{Type: "chat", Message: &msg})
+			c.updateContent = true
+		}
 	}
 }
 
@@ -263,8 +268,10 @@ func (c *Client) streamReasoning(chunk string, count int, end bool) {
 	msg.Role = "assistant"
 	msg.Update = c.reasoning != ""
 	c.reasoning += chunk
-	msg.Reasoning = toHTML(c.reasoning, msg.Role)
-	c.send(Response{Type: "chat", Message: &msg})
+	if msg.Reasoning = toHTML(c.reasoning, msg.Role); msg.Reasoning != "" {
+		c.send(Response{Type: "chat", Message: &msg})
+		c.updateContent = false
+	}
 }
 
 func (c *Client) onToolResponse(id, resp string, elapsed time.Duration) {
@@ -275,6 +282,7 @@ func (c *Client) onToolResponse(id, resp string, elapsed time.Duration) {
 	c.send(Response{Type: "chat", Message: &msg})
 	c.stats.ToolCalls++
 	c.stats.ToolCallElapsedMsec += elapsed.Seconds() * 1000
+	c.updateContent = false
 }
 
 func (c *Client) updateStats(s llm.Stats) {

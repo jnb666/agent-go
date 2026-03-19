@@ -55,7 +55,7 @@ func TestRequestSimple(t *testing.T) {
 	require.NoError(t, err)
 	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20), WithPresencePenalty(1.5), WithRepetitionPenalty(1.0), WithReasoningEffort("none"))
 
-	req, err := newRequest(m.id, m.config, testMessages)
+	req, err := m.newRequest(m.config, testMessages)
 	require.NoError(t, err)
 	t.Log(util.Pretty(req))
 
@@ -84,7 +84,7 @@ func TestRequestWithTools(t *testing.T) {
 	require.NoError(t, err)
 	m.SetOptions(WithTemperature(1.0), WithTopP(0.95), WithTopK(20), WithPresencePenalty(1.5), WithRepetitionPenalty(1.0), WithReasoningEffort("medium"), WithTools(toolDef))
 
-	req, err := newRequest(m.id, m.config, toolMessages)
+	req, err := m.newRequest(m.config, toolMessages)
 	require.NoError(t, err)
 	t.Log(util.Pretty(req))
 

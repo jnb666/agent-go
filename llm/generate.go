@@ -81,7 +81,7 @@ func (m *Model) Generate(ctx context.Context, messages []Message, opts ...Option
 	for _, opt := range opts {
 		opt(&config)
 	}
-	req, err := newRequest(m.id, config, messages)
+	req, err := m.newRequest(config, messages)
 	if err != nil {
 		return r, err
 	}
@@ -194,8 +194,8 @@ func (a *accumulator) addChunk(chunk openai.ChatCompletionChunk, reasoningField 
 }
 
 // Create chat completion parameters in openai format for use by generate
-func newRequest(modelID string, cfg Config, messages []Message) (req openai.ChatCompletionNewParams, err error) {
-	req.Model = modelID
+func (m *Model) newRequest(cfg Config, messages []Message) (req openai.ChatCompletionNewParams, err error) {
+	req.Model = m.id
 	req.Seed = cfg.Seed
 	req.Temperature = cfg.Temperature
 	req.TopP = cfg.TopP
@@ -206,11 +206,13 @@ func newRequest(modelID string, cfg Config, messages []Message) (req openai.Chat
 	if cfg.RepetitionPenalty.Valid() {
 		util.SetExtraField(&req, "repetition_penalty", cfg.RepetitionPenalty.Value)
 	}
-	if cfg.ReasoningEffort == "none" {
-		util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"enable_thinking": false})
-	} else if cfg.ReasoningEffort != "" {
-		req.ReasoningEffort = cfg.ReasoningEffort
-		util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"reasoning_effort": cfg.ReasoningEffort})
+	if m.server == "llamacpp" || m.server == "vllm" {
+		if cfg.ReasoningEffort == "none" {
+			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"enable_thinking": false})
+		} else if cfg.ReasoningEffort != "" {
+			req.ReasoningEffort = cfg.ReasoningEffort
+			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"reasoning_effort": cfg.ReasoningEffort})
+		}
 	}
 	for _, def := range cfg.Tools {
 		fn := &openai.ChatCompletionFunctionToolParam{

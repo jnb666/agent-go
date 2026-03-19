@@ -41,21 +41,21 @@ function refreshChatList(list, currentID) {
 }
 
 function addMessage(chat, msg, showReasoning) {
-    if (msg.reasoning && msg.reasoning.trim()) {
+    if (msg.reasoning && msg.reasoning !== "") {
         if (!msg.update) {
-            extendMessageList(chat, msg.role, true, showReasoning, msg.excluded);
+            extendMessageList(chat, msg.role, true, showReasoning);
         }
         addContent(chat, msg.reasoning);
     }
-    if (msg.content && msg.content.trim()) {
+    if (msg.content && msg.content !== "") {
         if (!msg.update) {
-            extendMessageList(chat, msg.role, false, showReasoning, msg.excluded);
+            extendMessageList(chat, msg.role, false, showReasoning);
         }
         addContent(chat, msg.content);
     }
 }
 
-function extendMessageList(chat, role, isReasoning, showReasoning, excluded) {
+function extendMessageList(chat, role, isReasoning, showReasoning) {
     var type = "final";
     var skip = false;
     if (role === "user") {
@@ -75,11 +75,7 @@ function extendMessageList(chat, role, isReasoning, showReasoning, excluded) {
         list[list.length-1].appendChild(newElement("div", "msgpart"));
     } else {
         // add a new message to the list
-        var className = "msg";
-        if (excluded) {
-            className += " excluded";
-        }
-        const entry = newElement("li", "chat-item "+type, newElement("div", className, newElement("div", "msgpart")));
+        const entry = newElement("li", "chat-item "+type, newElement("div", "msg", newElement("div", "msgpart")));
         if (type === "analysis" && !showReasoning) {
             entry.style.display = "none";
         }
@@ -206,8 +202,9 @@ function initFormControls(app) {
 }
 
 function submitConfigForm(app, form, withGenerationConfig) {
+    const id = form.model.value;
     var cfg = {
-        model: form.model.value,
+        model: id,
         system_prompt: form.system.value,
         models: {},
         tools: []
@@ -222,19 +219,27 @@ function submitConfigForm(app, form, withGenerationConfig) {
         for (const el of radio) {
             if (el.checked) reasoning_effort = el.value;
         }
-        cfg.models[form.model.value] = {
-            temperature: parseFloat(form.temperature.value),
-            top_p: parseFloat(form.top_p.value),
-            top_k: parseInt(form.top_k.value),
-            presence_penalty: parseFloat(form.presence_penalty.value),
-            repetition_penalty: parseFloat(form.repetition_penalty.value),
-            reasoning_effort: reasoning_effort
-        }
+        cfg.models[id] = { reasoning_effort: reasoning_effort };
+        setFloat(cfg.models[id], "temperature", form.temperature.value);
+        setFloat(cfg.models[id], "top_p", form.top_p.value);
+        setInt(cfg.models[id], "top_k", form.top_k.value);
+        setFloat(cfg.models[id], "top_p", form.top_p.value);
+        setFloat(cfg.models[id], "presence_penalty", form.presence_penalty.value);
+        setFloat(cfg.models[id], "repetition_penalty", form.repetition_penalty.value);
     }
     console.log("update config", cfg);
     app.send({ type: "config", config: cfg });    
 }
 
+function setFloat(m, key, val) {
+    const n = parseFloat(val);
+    if (!isNaN(n)) m[key] = n;
+}
+
+function setInt(m, key, val) {
+    const n = parseInt(val);
+    if (!isNaN(n)) m[key] = n;
+}
 
 function initMenuControls(app) {
     const list = document.getElementById("conv-list");
@@ -411,7 +416,7 @@ class App {
     }
 
     recv(resp) {
-        console.log("recv", resp.type);
+        //console.log("recv", resp);
         switch (resp.type) {
             case "chat":
                 addMessage(this.chat, resp.message, true);
