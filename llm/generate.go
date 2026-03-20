@@ -245,7 +245,7 @@ func (m *Model) newRequest(cfg Config, messages []Message) (req openai.ChatCompl
 		case "assistant":
 			m = openai.AssistantMessage(msg.Content)
 			if msg.Reasoning != "" && i > lastUserMessage {
-				util.SetExtraField(m.OfAssistant, "reasoning", msg.Reasoning)
+				util.SetExtraField(m.OfAssistant, "reasoning_content", msg.Reasoning)
 			}
 			for _, call := range msg.ToolCalls {
 				toolCall := openai.ChatCompletionMessageToolCallUnionParam{

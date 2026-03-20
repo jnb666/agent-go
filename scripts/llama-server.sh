@@ -5,6 +5,7 @@ SCRIPT_DIR="/home/john/agent-go/scripts"
 export LLAMA_CACHE=none
 
 $BIN_DIR/llama-server --models-preset "${SCRIPT_DIR}/llama-server-config.ini" \
+    --reasoning-budget 4096 --reasoning-budget-message "... reasoning budget exceeded, need to answer.\n" \
     --fit-target 256 --no-mmproj --models-max 1 \
     --jinja --host 0.0.0.0 --port 8080 
 

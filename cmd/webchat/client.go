@@ -50,7 +50,7 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 	var server string
 	c.Config, server, c.error = initModelConfig(ctx)
 	if c.error != nil {
-		return nil
+		return c
 	}
 	err := loadJSON("config_"+server+".json", &c.Config)
 	if err != nil {
@@ -58,7 +58,7 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 	}
 	c.tools, c.shutdown, c.error = browser.Tools()
 	if c.error != nil {
-		return nil
+		return c
 	}
 	c.updateConfig(ctx)
 	c.send(Response{Type: "config", Config: &c.Config})
@@ -112,6 +112,9 @@ func (c *Client) updateConfig(ctx context.Context) {
 
 // Load tools and poll websocket for updates
 func (c *Client) run(ctx context.Context) {
+	if c.error != nil {
+		return
+	}
 	go func() {
 		for {
 			var req Request
