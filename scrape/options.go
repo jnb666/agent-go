@@ -11,7 +11,7 @@ var DefaultOptions = Options{
 	Timeout:           15 * time.Second,
 	MaxAge:            8 * time.Hour,
 	MaxSpeed:          time.Second,
-	WaitUntil:         *playwright.WaitUntilStateLoad,
+	WaitUntil:         *playwright.WaitUntilStateNetworkidle,
 	Locale:            "en-GB",
 	Timezone:          "Europe/London",
 	IgnoreHttpsErrors: true,

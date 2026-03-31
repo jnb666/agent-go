@@ -16,7 +16,7 @@ import (
 )
 
 // Maximum number of lines to return per request
-var MaxLines = 25
+var MaxLines = 50
 
 // Get all web search, open and find tools
 func Tools(opts ...scrape.Option) (tools []agents.Tool, shutdown func(), err error) {

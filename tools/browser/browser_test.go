@@ -22,7 +22,7 @@ func TestBrowserOpen(t *testing.T) {
 
 	expect := `## Local LLM models: Part 1 - getting started - It's a banana? No it's a blog.
 (https://itsabanana.dev/posts/local_llm_hosting-part1/)
-**viewing lines [1 - 25] of 86**
+**viewing lines [1 - 50] of 86**
 `
 	assert.Contains(t, resp, expect)
 }
@@ -40,7 +40,7 @@ func TestBrowserScroll(t *testing.T) {
 
 	expect := `## Local LLM models: Part 1 - getting started - It's a banana? No it's a blog.
 (https://itsabanana.dev/posts/local_llm_hosting-part1/)
-**viewing lines [50 - 74] of 86**
+**viewing lines [36 - 85] of 86**
 `
 	assert.Contains(t, resp, expect)
 }
@@ -61,7 +61,7 @@ func TestBrowserFind(t *testing.T) {
 
 	expect := `## Local LLM models: Part 3 - calling tool functions - It's a banana? No it's a blog.
 (https://itsabanana.dev/posts/local_llm_hosting-part3/) find results for “OWM_API_KEY”
-**viewing lines [138 - 162] of 319**
+**viewing lines [138 - 187] of 319**
 `
 	assert.Contains(t, resp, expect)
 }

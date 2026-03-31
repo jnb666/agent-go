@@ -203,6 +203,12 @@ func (b *Browser) scrape(ctx context.Context, uri string, opt Options) (r Respon
 		r.Continue()
 	})
 
+	page.OnResponse(func(r playwright.Response) {
+		if r.Status() >= 300 && r.Status() < 400 {
+			log.Debugf("%d : redirect %s  => %v", r.Status(), r.Request().URL(), r.Headers()["location"])
+		}
+	})
+
 	var timeout *float64
 	if opt.Timeout > 0 {
 		timeout = new(float64)

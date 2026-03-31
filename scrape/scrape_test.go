@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +33,8 @@ func TestScrape(t *testing.T) {
 	require.NoError(t, err)
 	defer b.Shutdown()
 
+	logrus.SetLevel(logrus.DebugLevel)
+
 	type TestDef struct {
 		url      string
 		title    string
@@ -50,6 +53,7 @@ func TestScrape(t *testing.T) {
 		{"https://retrocomputing.co.uk/", "Retro Computing Grotto", "https://www.retrocomputing.co.uk/"},
 		{"https://en.wikipedia.org/wiki/Liz_Truss", "Liz Truss - Wikipedia", ""},
 		{"https://news.google.com/", "Google News", "https://news.google.com/home?hl=en-GB&gl=GB&ceid=GB:en"},
+		{"https://platform.claude.com/docs/en/build-with-claude/extended-thinking", "Building with extended thinking - Claude API Docs", ""},
 	}
 	for _, test := range tests {
 		t.Run(getHost(test.url), func(t *testing.T) {

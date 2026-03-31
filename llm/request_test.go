@@ -93,8 +93,8 @@ func TestRequestWithTools(t *testing.T) {
 			{"role": "system", "content": "You are a helpful assistant."},
 			{"role": "user", "content": "What's the weather like in London today?"},
 			{"role": "assistant",
-				"content":   "",
-				"reasoning": "The user is asking about the current weather in London. I need to use the get_current_weather function with the location parameter set to \"London,GB\" (using the ISO 3166 country code for Great Britain).",
+				"content":           "",
+				"reasoning_content": "The user is asking about the current weather in London. I need to use the get_current_weather function with the location parameter set to \"London,GB\" (using the ISO 3166 country code for Great Britain).",
 				"tool_calls": []map[string]any{{
 					"id":       "call_f5fc4884ea3348a9b38d3bf6",
 					"function": map[string]any{"arguments": "{\"location\":\"London,GB\"}", "name": "get_current_weather"},
