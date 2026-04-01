@@ -108,7 +108,8 @@ func (t *Search) search(ctx context.Context, apiKey, query string, topn int) (re
 	var h http.Header
 	for range MaxRetries {
 		h, err = util.GetWithHeaders(ctx, uri, &resp, util.Header{Key: "X-Subscription-Token", Value: apiKey})
-		if status, ok := errors.AsType[util.HTTPError](err); ok && status.Code == 429 {
+		var status util.HTTPError
+		if errors.As(err, &status) && status.Code == 429 {
 			log.Warnf("%v - retrying", err)
 			time.Sleep(time.Second)
 		} else {

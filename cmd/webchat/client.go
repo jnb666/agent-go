@@ -166,7 +166,7 @@ func (c *Client) handleRequest(ctx context.Context, req Request) {
 		}
 		err := saveJSON(c.agent.Memory.ID+".json", c.agent.Memory)
 		if err != nil {
-			log.Error("error saving conversation: %v", err)
+			log.Errorf("error saving conversation: %v", err)
 		} else if newChat {
 			c.listChats()
 		}
