@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jnb666/agent-go/util"
@@ -207,9 +208,9 @@ func (m *Model) newRequest(cfg Config, messages []Message) (req openai.ChatCompl
 		util.SetExtraField(&req, "repetition_penalty", cfg.RepetitionPenalty.Value)
 	}
 	if m.server == "llamacpp" || m.server == "vllm" {
-		if cfg.ReasoningEffort == "none" {
-			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"enable_thinking": false})
-		} else if cfg.ReasoningEffort != "" {
+		if strings.Contains(m.id, "Qwen3.5") || strings.Contains(m.id, "gemma-4") {
+			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"enable_thinking": cfg.ReasoningEffort != "none"})
+		} else if strings.Contains(m.id, "gpt-oss") {
 			req.ReasoningEffort = cfg.ReasoningEffort
 			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"reasoning_effort": cfg.ReasoningEffort})
 		}

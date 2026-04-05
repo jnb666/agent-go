@@ -4,9 +4,12 @@
 package llm
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -177,4 +180,46 @@ func parseInt(s string) (val param.Opt[int64]) {
 		val = openai.Int(n)
 	}
 	return
+}
+
+// DebugLogger logs the HTTP request and response content. It implements the openai option.Middleware type.
+func DebugLogger(req *http.Request, nxt option.MiddlewareNext) (*http.Response, error) {
+	var data []byte
+	data, req.Body = readBody(req.Body)
+	if data != nil {
+		util.LogDebug("HTTP Request", data)
+	}
+	resp, err := nxt(req)
+	if err != nil {
+		return resp, err
+	}
+	data, resp.Body = readBody(resp.Body)
+	if data != nil {
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "{") {
+				util.LogDebug("HTTP Response", line)
+			} else if strings.HasPrefix(line, "data: {") {
+				util.LogDebug("HTTP Response", line[6:])
+			} else if strings.TrimSpace(line) != "" {
+				log.Debugf("HTTP Response %q", line)
+			}
+		}
+		if scanner.Err() != nil {
+			log.Error(scanner.Err())
+		}
+	}
+	return resp, nil
+}
+
+func readBody(b io.ReadCloser) ([]byte, io.ReadCloser) {
+	if b == nil || b == http.NoBody {
+		return nil, http.NoBody
+	}
+	data, err := io.ReadAll(b)
+	if err != nil {
+		log.Error(err)
+	}
+	return data, io.NopCloser(bytes.NewBuffer(data))
 }

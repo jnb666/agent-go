@@ -109,8 +109,7 @@ func TestRequestWithTools(t *testing.T) {
 		"top_k":                20,
 		"presence_penalty":     1.5,
 		"repetition_penalty":   1.0,
-		"reasoning_effort":     "medium",
-		"chat_template_kwargs": map[string]any{"reasoning_effort": "medium"},
+		"chat_template_kwargs": map[string]any{"enable_thinking": true},
 		"parallel_tool_calls":  true,
 		"tools": []map[string]any{{
 			"function": map[string]any{

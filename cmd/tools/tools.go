@@ -14,6 +14,7 @@ import (
 	"github.com/jnb666/agent-go/tools/browser"
 	"github.com/jnb666/agent-go/tools/weather"
 	"github.com/jnb666/agent-go/util"
+	"github.com/openai/openai-go/v3/option"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -48,7 +49,7 @@ func main() {
 		tools = weather.Tools
 	}
 
-	agent, err := initAgent(modelID, nostream, tools, systemPrompt)
+	agent, err := initAgent(modelID, nostream, tools, systemPrompt, debug)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,12 +84,17 @@ func (PromptArgs) Time() time.Time {
 	return time.Now()
 }
 
-func initAgent(modelID string, nostream bool, tools []agents.Tool, systemPrompt string) (*agents.Agent, error) {
-	model, err := llm.NewModel(context.Background(), modelID)
+func initAgent(modelID string, nostream bool, tools []agents.Tool, systemPrompt string, debug bool) (*agents.Agent, error) {
+	var opts []option.RequestOption
+	if debug {
+		opts = append(opts, option.WithMiddleware(llm.DebugLogger))
+	}
+	model, err := llm.NewModel(context.Background(), modelID, opts...)
 	if err != nil {
 		return nil, err
 	}
 	log.Infof("Connected to %s at %s", model.ID(), model.BaseURL())
+	model.SetOptions(llm.WithReasoningEffort("medium"))
 	if !nostream {
 		model.SetStreaming(true, printContent, printReasoning)
 	}
