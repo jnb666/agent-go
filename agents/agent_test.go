@@ -6,16 +6,11 @@ import (
 	"testing"
 
 	"github.com/jnb666/agent-go/llm"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var testModel = "Qwen3.5-9B"
-
-func init() {
-	log.SetLevel(log.InfoLevel)
-}
 
 func TestPrompt(t *testing.T) {
 	model, err := llm.NewModel(context.Background(), testModel)

@@ -114,13 +114,13 @@ a:active {
 .chat-menu-left {
     position: absolute;
     top: 12px;
-    left: 30px;
+    left: 10px;
 }
 
 .chat-menu-right {
     position: absolute;
     top: 8px;
-    right: 30px;
+    right: 10px;
 }
 
 /* config form */
@@ -202,7 +202,7 @@ a:active {
     transition: all .2s ease;
 }
 
-.excluded {
+.compacted {
     color: rgba(255,255,255,0.5);
 }
 
@@ -271,7 +271,7 @@ a:active {
 }
 
 .tool-response {
-    height: 2.5rem;
+    height: 1rem;
     margin-top: 5px;
     margin-bottom: 5px;
     overflow-x: hidden;

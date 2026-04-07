@@ -20,23 +20,25 @@ type Tool interface {
 
 // An agent drives model generation with a set of registered tools.
 type Agent struct {
-	Name           string
-	Model          *llm.Model
-	Memory         *Memory
-	PromptTemplate *template.Template
-	PromptArgs     any
-	Executor       Executor
-	StatsCallback  func(llm.Stats)
-	MaxRetries     int
+	Name            string
+	Model           *llm.Model
+	Memory          *Memory
+	PromptTemplate  *template.Template
+	PromptArgs      any
+	Executor        Executor
+	StatsCallback   func(llm.Stats)
+	MaxRetries      int
+	KeepToolResults int
 }
 
 // Create a new agent using the given model.
 func New(name string, model *llm.Model) *Agent {
 	return &Agent{
-		Name:       name,
-		Model:      model,
-		Memory:     NewMemory(),
-		MaxRetries: 2,
+		Name:            name,
+		Model:           model,
+		Memory:          NewMemory(),
+		MaxRetries:      2,
+		KeepToolResults: 3,
 	}
 }
 
@@ -68,13 +70,16 @@ func (a *Agent) String() string {
 // either the final content is generated or a fatal error occurs.
 func (a *Agent) Run(ctx context.Context, userMessage string) (final llm.Message, err error) {
 	a.Memory.Append(llm.Message{Role: "user", Content: userMessage})
+	if a.KeepToolResults > 0 {
+		a.Memory.compactToolResults(a.KeepToolResults)
+	}
 	retry := 0
 	for {
 		prompt, err := execTemplate(a.PromptTemplate, a.PromptArgs)
 		if err != nil {
 			return llm.Message{}, err
 		}
-		r, err := a.Model.Generate(ctx, a.Memory.WithPrompt(prompt), llm.WithTools(a.Executor.ToolDefinitions()...))
+		r, err := a.Model.Generate(ctx, a.Memory.MessageList(prompt), llm.WithTools(a.Executor.ToolDefinitions()...))
 		if err != nil {
 			return llm.Message{}, err
 		}

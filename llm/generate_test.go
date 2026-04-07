@@ -85,7 +85,7 @@ func TestGenerateWithCancel(t *testing.T) {
 	t.Log(m.ID())
 	m.SetOptions(WithSeed(42), WithTemperature(0), WithReasoningEffort("medium"))
 
-	for _, name := range []string{"sync", "streaming"} {
+	for i, name := range []string{"sync", "streaming"} {
 		t.Run(name, func(t *testing.T) {
 			streamer := testStreamer{T: t}
 			m.SetStreaming(name == "streaming", streamer.streamContent, streamer.streamReasoning)
@@ -102,11 +102,14 @@ func TestGenerateWithCancel(t *testing.T) {
 
 			assert.Equal(t, "deadline_exceeded", res.FinishReason)
 			assert.Equal(t, "", res.Message.Content)
-			if name == "stream" {
+			if name == "streaming" {
 				assert.Greater(t, len(res.Message.Reasoning), 50)
 			}
 			assert.Equal(t, 200, int(res.Stats.TotalMsec/10))
 		})
+		if i == 0 {
+			time.Sleep(4 * time.Second)
+		}
 	}
 }
 

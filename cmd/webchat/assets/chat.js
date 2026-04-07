@@ -93,16 +93,16 @@ function addContent(chat, content) {
     scrollToEnd();
 }
 
-function loadChat(chat, conv, showReasoning) {
-    console.log("load chat %s reasoning=%s", conv.id, showReasoning);
+function loadChat(chat, id, messages, showReasoning) {
+    console.log("load chat %s reasoning=%s", id, showReasoning);
     chat.replaceChildren();
-    if (conv.messages) {
-        for (const msg of conv.messages) {
+    if (messages) {
+        for (const msg of messages) {
             addMessage(chat, msg, showReasoning);
         }
     }
     const list = document.getElementById("conv-list");
-    selectLink(list, conv.id);
+    selectLink(list, id);
 }
 
 function refreshChat(chat, showReasoning) {
@@ -149,6 +149,7 @@ function setConfig(cfg) {
 }
 
 function setGenerationConfig(form, values) {
+    form.context_size.value = values.context_size || "";
     form.temperature.value = values.temperature || "";
     form.top_p.value = values.top_p || "";
     form.top_k.value = values.top_k || "";
@@ -161,26 +162,20 @@ function setGenerationConfig(form, values) {
 }
 
 function clearStats() {
-    for (const fld of ["context-size", "tokens-generated", "prompt-speed", "stats-speed", "stats-tools"]) {
+    for (const fld of ["stats-prompt", "stats-gen", "stats-tools", "stats-time"]) {
         document.getElementById(fld).textContent = "";
     }
 }
 
 function updateStats(stats) {
-    document.getElementById("context-size").textContent = `context: ${stats.context_size}`;
-    document.getElementById("tokens-generated").textContent = `generated: ${stats.tokens_generated}`;
-    if (stats.prompt_speed && stats.generation_speed) {
-        document.getElementById("prompt-speed").textContent = `pp: ${stats.prompt_speed.toFixed(1)} tps`;
-        document.getElementById("stats-speed").textContent = `tg: ${stats.generation_speed.toFixed(1)} tps`;
-    } else {
-        document.getElementById("prompt-speed").textContent = "";
-        document.getElementById("stats-speed").textContent = `in ${duration(stats.generation_time)}`;
-    }
+    document.getElementById("stats-prompt").textContent = `prompt: ${stats.context_used} in ${stats.prompt_time}`;
+    document.getElementById("stats-gen").textContent = `generated: ${stats.tokens_generated} at ${stats.generation_speed}`;
     if (stats.tool_calls) {
-        document.getElementById("stats-tools").textContent = `${stats.tool_calls} tool calls in ${duration(stats.tool_time)}`;
+        document.getElementById("stats-tools").textContent = `${stats.tool_calls} tool calls`;
     } else {
         document.getElementById("stats-tools").textContent = "";
     }
+    document.getElementById("stats-time").textContent = `total: ${stats.total_time}`;
 }
 
 function duration(ms) {
@@ -220,6 +215,7 @@ function submitConfigForm(app, form, withGenerationConfig) {
             if (el.checked) reasoning_effort = el.value;
         }
         cfg.models[id] = { reasoning_effort: reasoning_effort };
+        setInt(cfg.models[id], "context_size", form.context_size.value);
         setFloat(cfg.models[id], "temperature", form.temperature.value);
         setFloat(cfg.models[id], "top_p", form.top_p.value);
         setInt(cfg.models[id], "top_k", form.top_k.value);
@@ -287,12 +283,12 @@ function initChatControls(app) {
     app.chat.addEventListener("click", e => {
         const collapsed = e.target.closest(".tool-response");
         if (collapsed) {
-            collapsed.setAttribute("class", "tool-response-expanded");
+            collapsed.classList.replace("tool-response", "tool-response-expanded");
             return;
         }
         const expanded = e.target.closest(".tool-response-expanded");
         if (expanded) {
-            expanded.setAttribute("class", "tool-response");
+            expanded.classList.replace("tool-response-expanded", "tool-response");
         }
     });
 }
@@ -431,7 +427,7 @@ class App {
                 refreshChatList(resp.list, resp.current_id);
                 break;
             case "load":
-                loadChat(this.chat, resp.conversation, this.showReasoning);
+                loadChat(this.chat, resp.current_id, resp.conversation, this.showReasoning);
                 break;
             case "config":
                 setConfig(resp.config);

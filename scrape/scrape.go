@@ -3,9 +3,11 @@ package scrape
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"slices"
@@ -45,6 +47,8 @@ type Response struct {
 	Timestamp  time.Time
 }
 
+var lockErrorRegex = regexp.MustCompile(`ENOENT: no such file or directory, stat '(.+?/firefox/lock)'`)
+
 // Load new firefox browser. Options can be given to override those in DefaultOptions.
 func New(options ...Option) (*Browser, error) {
 	log.Info("scrape: new browser")
@@ -61,10 +65,20 @@ func New(options ...Option) (*Browser, error) {
 		return nil, err
 	}
 	b.browser, err = b.playwright.Firefox.Launch()
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return b, nil
 	}
-	return b, nil
+	e := new(playwright.Error)
+	if errors.As(err, &e) {
+		m := lockErrorRegex.FindStringSubmatch(e.Message)
+		if len(m) == 2 {
+			log.Warnf("clear stale lock file: %s", m[1])
+			if err = os.Remove(m[1]); err == nil {
+				b.browser, err = b.playwright.Firefox.Launch()
+			}
+		}
+	}
+	return b, err
 }
 
 // Close browser and stop playwright

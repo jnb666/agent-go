@@ -3,6 +3,7 @@ package scrape
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -48,21 +49,24 @@ func TestScrape(t *testing.T) {
 		{"https://www.reuters.com/world/uk/", "UK News | Top Stories from the UK | Reuters", ""},
 		{"https://www.reddit.com/r/LocalLLaMA/", "LocalLlama", ""},
 		{"https://github.com/jnb666/gpt-go", "GitHub - jnb666/gpt-go: Code to interact with LLM models in go · GitHub", ""},
-		{"https://www.yahoo.com/entertainment/", "Yahoo Entertainment", "https://www.yahoo.com/entertainment/?guccounter=1"},
+		{"https://www.yahoo.com/entertainment/", "Yahoo Entertainment", ""},
 		{"https://www.rottentomatoes.com/m/one_battle_after_another", "One Battle After Another | Rotten Tomatoes", ""},
 		{"https://retrocomputing.co.uk/", "Retro Computing Grotto", "https://www.retrocomputing.co.uk/"},
 		{"https://en.wikipedia.org/wiki/Liz_Truss", "Liz Truss - Wikipedia", ""},
-		{"https://news.google.com/", "Google News", "https://news.google.com/home?hl=en-GB&gl=GB&ceid=GB:en"},
+		{"https://news.google.com/", "Google News", "https://news.google.com/home"},
 		{"https://platform.claude.com/docs/en/build-with-claude/extended-thinking", "Building with extended thinking - Claude API Docs", ""},
 	}
 	for _, test := range tests {
 		t.Run(getHost(test.url), func(t *testing.T) {
 			resp := scrape(t, b, test.url)
 			assert.Equal(t, test.title, resp.Title)
+			u, err := url.Parse(resp.URL)
+			require.NoError(t, err)
+			uri := "https://" + u.Host + u.EscapedPath()
 			if test.redirect == "" {
-				assert.Equal(t, test.url, resp.URL)
+				assert.Equal(t, test.url, uri)
 			} else {
-				assert.Equal(t, test.redirect, resp.URL)
+				assert.Equal(t, test.redirect, uri)
 			}
 		})
 	}

@@ -13,17 +13,14 @@
       <div class="chat-menu-left">
         <span id="model-name" class="heading-text"></span>
         <span class="chat-menu-spacer"></span>
-        <label id="context-size"></label>
+        <label id="stats-prompt"></label>
         <span class="chat-menu-spacer"></span>
-        <label id="tokens-generated"></label>
-        <span class="chat-menu-spacer"></span>
-        <label id="prompt-speed"></label>
-        <span class="chat-menu-spacer"></span>
-        <label id="stats-speed"></label>
+        <label id="stats-gen"></label>
         <span class="chat-menu-spacer"></span>
         <label id="stats-tools"></label>
         <span class="chat-menu-spacer"></span>
-        <label id="error-message" class="error-text"></label>
+        <label id="stats-time"></label>
+        <span id="error-message" class="error-text"></span>
       </div>
       <div class="chat-menu-right pure-form">
         <label for="reasoning-history"><input id="reasoning-history" type="checkbox"> show all reasoning</label>
@@ -54,6 +51,10 @@
         <label>system prompt:</label>
         <div>
           <textarea name="system"></textarea>
+        </div>
+        <label>context size:</label>
+        <div>
+          <input name="context_size" type="text">
         </div>
         <label>temperature:</label>
         <div>

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -14,7 +16,39 @@ import (
 var (
 	Client    = http.Client{Timeout: 30 * time.Second}
 	UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:148.0) Gecko/20100101 Firefox/148.0"
+	ConfigDir = getConfigDir()
 )
+
+func LoadJSON(filename string, v any) error {
+	log.Debugf("Load JSON from %s", filename)
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
+}
+
+func SaveJSON(filename string, v any) error {
+	log.Debugf("Save JSON to %s", filename)
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, 0644)
+}
+
+func getConfigDir() string {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		panic(err)
+	}
+	dir := filepath.Join(base, "agent-go")
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		panic(err)
+	}
+	return dir
+}
 
 type HTTPError struct {
 	Code   int

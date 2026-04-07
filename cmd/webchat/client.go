@@ -28,13 +28,14 @@ const MaxConversations = 30
 
 // Client manages the websockets connection between the server and a web browser UI.
 type Client struct {
-	Config
+	agents.Config
 	ws            *websocket.Conn
 	input         chan Request
 	agent         *agents.Agent
 	tools         []agents.Tool
 	shutdown      func()
 	stats         Stats
+	start         time.Time
 	reasoning     string
 	content       string
 	updateContent bool
@@ -52,7 +53,7 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 	if c.error != nil {
 		return c
 	}
-	err := loadJSON("config_"+server+".json", &c.Config)
+	err := agents.LoadConfig(server, &c.Config)
 	if err != nil {
 		log.Warn(err)
 	}
@@ -66,7 +67,7 @@ func newClient(ctx context.Context, ws *websocket.Conn) *Client {
 }
 
 // Initialise default model config settings
-func initModelConfig(ctx context.Context) (cfg Config, server string, err error) {
+func initModelConfig(ctx context.Context) (cfg agents.Config, server string, err error) {
 	cfg = DefaultConfig()
 	modelIDs, err := llm.ListModels(ctx)
 	if err != nil {
@@ -102,12 +103,12 @@ func (c *Client) updateConfig(ctx context.Context) {
 	c.agent.Executor.After = c.onToolResponse
 	c.agent.Executor.Tools = nil
 	for _, tool := range c.tools {
-		if slices.ContainsFunc(c.Tools, func(c ToolConfig) bool { return c.Enabled }) {
+		if slices.ContainsFunc(c.Tools, func(c agents.ToolConfig) bool { return c.Enabled }) {
 			c.agent.Executor.Tools = append(c.agent.Executor.Tools, tool)
 		}
 	}
 	log.Info(c.agent)
-	c.error = saveJSON("config_"+model.Server()+".json", c.Config)
+	c.error = util.SaveJSON(filepath.Join(util.ConfigDir, "config_"+model.Server()+".json"), c.Config)
 }
 
 // Load tools and poll websocket for updates
@@ -158,13 +159,14 @@ func (c *Client) handleRequest(ctx context.Context, req Request) {
 		c.reasoning = ""
 		c.content = ""
 		c.updateContent = false
-		newChat := c.agent.Memory.NumMessages() == 0
+		newChat := len(c.agent.Memory.Messages) == 0
 		c.stats = Stats{}
+		c.start = time.Now()
 		_, c.error = c.agent.Run(ctx, req.Message.Content)
 		if c.error != nil {
 			return
 		}
-		err := saveJSON(c.agent.Memory.ID+".json", c.agent.Memory)
+		err := util.SaveJSON(filepath.Join(util.ConfigDir, c.agent.Memory.ID+".json"), c.agent.Memory)
 		if err != nil {
 			log.Errorf("error saving conversation: %v", err)
 		} else if newChat {
@@ -198,7 +200,7 @@ func (c *Client) handleRequest(ctx context.Context, req Request) {
 // get list of saved conversation ids
 func (c *Client) listChats() {
 	log.Info("list saved chats")
-	entries, err := os.ReadDir(ConfigDir)
+	entries, err := os.ReadDir(util.ConfigDir)
 	if err != nil {
 		c.error = err
 		return
@@ -208,7 +210,7 @@ func (c *Client) listChats() {
 		e := entries[i]
 		if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), "config") && strings.HasSuffix(e.Name(), ".json") {
 			var conv agents.Memory
-			if err := loadJSON(e.Name(), &conv); err != nil {
+			if err := util.LoadJSON(filepath.Join(util.ConfigDir, e.Name()), &conv); err != nil {
 				log.Errorf("Error reading %s: %v", e.Name(), err)
 				continue
 			}
@@ -226,23 +228,28 @@ func (c *Client) loadChat(id string) {
 	if id == "" {
 		c.agent.Memory = agents.NewMemory()
 	} else {
-		if err := loadJSON(id+".json", c.agent.Memory); err != nil {
+		if err := util.LoadJSON(filepath.Join(util.ConfigDir, id+".json"), c.agent.Memory); err != nil {
 			log.Errorf("error loading conversation %s: %v", id, err)
 			return
 		}
 	}
-	conv := c.agent.Memory.Clone()
-	for i, msg := range conv.Messages {
-		conv.Messages[i].Content = toHTML(msg.Content, msg.Role)
-		conv.Messages[i].Reasoning = toHTML(msg.Reasoning, msg.Role)
+	conv := slices.Clone(c.agent.Memory.Messages)
+	for i, msg := range conv {
+		if msg.Role == "tool" {
+			call := c.agent.Memory.ToolCall(msg.ToolCallID)
+			conv[i].Content = toHTML(call.String()+"\n\n"+msg.Content, msg.Role, msg.Compacted != "")
+		} else {
+			conv[i].Content = toHTML(msg.Content, msg.Role, false)
+			conv[i].Reasoning = toHTML(msg.Reasoning, msg.Role, false)
+		}
 	}
-	c.send(Response{Type: "load", Conversation: conv})
+	c.send(Response{Type: "load", Conversation: conv, CurrentID: c.agent.Memory.ID})
 }
 
 // delete chat with given id and start a new conversation
 func (c *Client) deleteChat(id string) {
 	log.Infof("delete conversation: id=%s", id)
-	err := os.Remove(filepath.Join(ConfigDir, id+".json"))
+	err := os.Remove(filepath.Join(util.ConfigDir, id+".json"))
 	if err != nil {
 		log.Errorf("error deleting conversation %s: %v", id, err)
 		return
@@ -257,7 +264,7 @@ func (c *Client) streamContent(chunk string, count int, end bool) {
 	if end || strings.Contains(chunk, "\n") {
 		var msg Message
 		msg.Role = "assistant"
-		if msg.Content = toHTML(c.content, msg.Role); msg.Content != "" {
+		if msg.Content = toHTML(c.content, msg.Role, false); msg.Content != "" {
 			msg.Update = c.updateContent
 			msg.End = end
 			c.send(Response{Type: "chat", Message: &msg})
@@ -271,7 +278,7 @@ func (c *Client) streamReasoning(chunk string, count int, end bool) {
 	msg.Role = "assistant"
 	msg.Update = c.reasoning != ""
 	c.reasoning += chunk
-	if msg.Reasoning = toHTML(c.reasoning, msg.Role); msg.Reasoning != "" {
+	if msg.Reasoning = toHTML(c.reasoning, msg.Role, false); msg.Reasoning != "" {
 		c.send(Response{Type: "chat", Message: &msg})
 		c.updateContent = false
 	}
@@ -279,26 +286,28 @@ func (c *Client) streamReasoning(chunk string, count int, end bool) {
 
 func (c *Client) onToolResponse(id, resp string, elapsed time.Duration) {
 	c.reasoning = ""
+	call := c.agent.Memory.ToolCall(id)
 	var msg Message
 	msg.Role = "tool"
-	msg.Content = toHTML(resp, msg.Role)
+	msg.Content = toHTML(call.String()+"\n\n"+resp, msg.Role, false)
 	c.send(Response{Type: "chat", Message: &msg})
 	c.stats.ToolCalls++
-	c.stats.ToolCallElapsedMsec += elapsed.Seconds() * 1000
 	c.updateContent = false
 }
 
 func (c *Client) updateStats(s llm.Stats) {
 	log.Info(s)
-	c.stats.ContextSize = s.PromptTokens
+	if ctx := c.Config.Models[c.Config.Model].ContextSize; ctx.Valid() {
+		c.stats.ContextUsed = fmt.Sprintf("%.0f%%", 100*float64(s.PromptTokens)/float64(ctx.Value))
+	} else {
+		c.stats.ContextUsed = fmt.Sprint(s.PromptTokens)
+	}
+	c.stats.PromptTime = fmt.Sprintf("%.1f s", s.PromptMsec/1000)
 	c.stats.TokensGenerated += s.CompletionTokens
-	if s.PromptMsec != 0 {
-		c.stats.PromptSpeed = 1000 * float64(s.PromptTokens) / (s.PromptMsec)
-	}
 	if s.CompletionMsec != 0 {
-		c.stats.GenerationSpeed = 1000 * float64(s.CompletionTokens) / (s.CompletionMsec)
+		c.stats.GenerationSpeed = fmt.Sprintf("%.1f tps", float64(s.CompletionTokens)*1000/s.CompletionMsec)
 	}
-	c.stats.GenerationElapsedMsec += s.TotalMsec
+	c.stats.TotalTime = fmt.Sprintf("%.1f s", time.Since(c.start).Seconds())
 	c.send(Response{Type: "stats", Stats: &c.stats})
 }
 
@@ -329,12 +338,16 @@ func renderMarkdown(doc string) (string, error) {
 }
 
 // utils
-func toHTML(content, role string) string {
+func toHTML(content, role string, compacted bool) string {
 	if strings.TrimSpace(content) == "" {
 		return ""
 	}
 	if role == "tool" {
-		return `<pre><code class="tool-response">` + content + `</code></pre>`
+		extra := ""
+		if compacted {
+			extra = " compacted"
+		}
+		return `<pre><code class="tool-response` + extra + `">` + content + `</code></pre>`
 	}
 	if role == "assistant" {
 		html, err := renderMarkdown(content)

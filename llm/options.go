@@ -15,6 +15,7 @@ type Config struct {
 }
 
 type GenerationConfig struct {
+	ContextSize              param.Opt[int64]       `json:"context_size,omitzero"`
 	Seed                     param.Opt[int64]       `json:"seed,omitzero"`
 	Temperature              param.Opt[float64]     `json:"temperature,omitzero"`
 	TopP                     param.Opt[float64]     `json:"top_p,omitzero"`

@@ -32,7 +32,6 @@ type Model struct {
 	baseURL         string
 	server          string
 	reasoning       string
-	contextSize     int
 }
 
 // Callback called from streaming generation. An empty call with end=true is sent after the last chunk.
@@ -74,11 +73,12 @@ func NewModel(ctx context.Context, modelID string, options ...option.RequestOpti
 			m.server = model.OwnedBy
 			if m.server == "llamacpp" {
 				m.reasoning = "reasoning_content"
-				m.contextSize = getLlamacppArgs(model, &m.config.GenerationConfig)
+				m.config.GenerationConfig, err = getLlamacppArgs(model)
+				m.config.ReasoningEffort = "medium"
 			} else {
 				m.reasoning = "reasoning"
 			}
-			return m, nil
+			return m, err
 		}
 	}
 	return nil, fmt.Errorf("model %s not found on server", modelID)
@@ -97,11 +97,6 @@ func (m *Model) BaseURL() string {
 // Server name - e.g. llamacpp, vllm etc. - from /models response
 func (m *Model) Server() string {
 	return m.server
-}
-
-// Model context size - if known
-func (m *Model) ContextSize() int {
-	return m.contextSize
 }
 
 // Enable or disable streaming option and set callback functions if not nil
@@ -130,16 +125,15 @@ func (m *Model) SetOptions(opts ...Option) {
 }
 
 // Get default configuration from llama.cpp models endpoint if set
-func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) (contextSize int) {
+func getLlamacppArgs(model openai.Model) (cfg GenerationConfig, err error) {
 	var extra struct {
 		Status struct {
 			Args []string
 		}
 	}
-	err := json.Unmarshal([]byte(model.RawJSON()), &extra)
+	err = json.Unmarshal([]byte(model.RawJSON()), &extra)
 	if err != nil {
-		log.Error(err)
-		return
+		return cfg, err
 	}
 	util.LogTrace("llamacpp args:", extra.Status.Args)
 	var key string
@@ -161,11 +155,11 @@ func getLlamacppArgs(model openai.Model, cfg *GenerationConfig) (contextSize int
 			case "repeat-penalty":
 				cfg.RepetitionPenalty = parseFloat(arg)
 			case "ctx-size":
-				contextSize, _ = strconv.Atoi(arg)
+				cfg.ContextSize = parseInt(arg)
 			}
 		}
 	}
-	return
+	return cfg, nil
 }
 
 func parseFloat(s string) (val param.Opt[float64]) {
