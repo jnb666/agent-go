@@ -228,11 +228,18 @@ func (m *Model) newRequest(cfg Config, messages []Message) (req openai.ChatCompl
 		util.SetExtraField(&req, "repetition_penalty", cfg.RepetitionPenalty.Value)
 	}
 	if m.server == "llamacpp" || m.server == "vllm" {
-		if strings.Contains(m.id, "Qwen3.5") || strings.Contains(m.id, "gemma-4") {
-			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"enable_thinking": cfg.ReasoningEffort != "none"})
+		kwargs := map[string]any{}
+		if strings.Contains(m.id, "Qwen3") || strings.Contains(m.id, "gemma-4") {
+			kwargs["enable_thinking"] = cfg.ReasoningEffort != "none"
 		} else if strings.Contains(m.id, "gpt-oss") {
 			req.ReasoningEffort = cfg.ReasoningEffort
-			util.SetExtraField(&req, "chat_template_kwargs", map[string]any{"reasoning_effort": cfg.ReasoningEffort})
+			kwargs["reasoning_effort"] = cfg.ReasoningEffort
+		}
+		if cfg.PreserveThinking && strings.Contains(m.id, "Qwen3.6") {
+			kwargs["preserve_thinking"] = true
+		}
+		if len(kwargs) > 0 {
+			util.SetExtraField(&req, "chat_template_kwargs", kwargs)
 		}
 	}
 	for _, def := range cfg.Tools {
@@ -265,7 +272,7 @@ func (m *Model) newRequest(cfg Config, messages []Message) (req openai.ChatCompl
 			m = openai.UserMessage(msg.Content)
 		case "assistant":
 			m = openai.AssistantMessage(msg.Content)
-			if msg.Reasoning != "" && i > lastUserMessage {
+			if msg.Reasoning != "" && (i > lastUserMessage || cfg.PreserveThinking) {
 				util.SetExtraField(m.OfAssistant, "reasoning_content", msg.Reasoning)
 			}
 			for _, call := range msg.ToolCalls {

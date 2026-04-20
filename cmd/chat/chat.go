@@ -16,12 +16,13 @@ import (
 )
 
 func main() {
-	var nostream, debug bool
+	var nostream, debug, preserveThinking bool
 	var systemPrompt, reasoning, modelID string
 	flag.StringVar(&reasoning, "reasoning", "none", "set reasoning - none, low, medium or high")
 	flag.StringVar(&systemPrompt, "system", "", "set custom system prompt")
 	flag.BoolVar(&nostream, "nostream", false, "disable streaming")
 	flag.BoolVar(&debug, "debug", false, "enable debug logging")
+	flag.BoolVar(&preserveThinking, "preserve-thinking", false, "resend past reasoning (for Qwen 3.6)")
 	flag.StringVar(&modelID, "model", "", "model name - defaults to first listed if not set")
 	flag.Parse()
 	if debug {
@@ -43,6 +44,9 @@ func main() {
 	}
 	log.Infof("Connected to %s at %s", model.ID(), model.BaseURL())
 	model.SetOptions(llm.WithReasoningEffort(shared.ReasoningEffort(reasoning)))
+	if preserveThinking {
+		model.SetOptions(llm.WithPreserveThinking())
+	}
 	if !nostream {
 		model.SetStreaming(true, printContent, printReasoning)
 	}

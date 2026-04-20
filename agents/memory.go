@@ -35,13 +35,9 @@ func (m *Memory) MessageList(prompt string) []llm.Message {
 		log.Debugf("system prompt: %s", prompt)
 		msgs = append(msgs, llm.Message{Role: "system", Content: prompt})
 	}
-	start := m.lastTurn()
-	for i, msg := range m.Messages {
+	for _, msg := range m.Messages {
 		if msg.Deleted {
 			continue
-		}
-		if start >= 0 && i < start {
-			msg.Reasoning = ""
 		}
 		if msg.Compacted != "" {
 			msg.Content = msg.Compacted
@@ -80,13 +76,4 @@ func (m *Memory) ToolCall(id string) llm.ToolCall {
 		}
 	}
 	return llm.ToolCall{Name: "unknown"}
-}
-
-func (m *Memory) lastTurn() int {
-	for i := len(m.Messages) - 1; i >= 0; i-- {
-		if m.Messages[i].Role == "user" {
-			return i
-		}
-	}
-	return -1
 }

@@ -159,6 +159,7 @@ function setGenerationConfig(form, values) {
     for (const el of radio) {
         el.checked = (el.value === values.reasoning_effort);
     }
+    form.preserve_thinking.checked = values.preserve_thinking;
 }
 
 function clearStats() {
@@ -222,6 +223,9 @@ function submitConfigForm(app, form, withGenerationConfig) {
         setFloat(cfg.models[id], "top_p", form.top_p.value);
         setFloat(cfg.models[id], "presence_penalty", form.presence_penalty.value);
         setFloat(cfg.models[id], "repetition_penalty", form.repetition_penalty.value);
+        if (form.preserve_thinking.checked) {
+            cfg.models[id].preserve_thinking = true;
+        }
     }
     console.log("update config", cfg);
     app.send({ type: "config", config: cfg });    

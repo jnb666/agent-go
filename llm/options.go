@@ -24,6 +24,7 @@ type GenerationConfig struct {
 	RepetitionPenalty        param.Opt[float64]     `json:"repetition_penalty,omitzero"`
 	ReasoningEffort          shared.ReasoningEffort `json:"reasoning_effort,omitzero"`
 	DisableParallelToolCalls bool                   `json:"disable_parallel_tool_calls,omitzero"`
+	PreserveThinking         bool                   `json:"preserve_thinking"`
 }
 
 func (c Config) Clone() Config {
@@ -81,6 +82,13 @@ func WithRepetitionPenalty(penalty float64) Option {
 func WithReasoningEffort(effort shared.ReasoningEffort) Option {
 	return func(c *Config) {
 		c.ReasoningEffort = shared.ReasoningEffort(effort)
+	}
+}
+
+// Used by Qwen3.6 template
+func WithPreserveThinking() Option {
+	return func(c *Config) {
+		c.PreserveThinking = true
 	}
 }
 

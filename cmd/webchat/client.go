@@ -337,6 +337,8 @@ func renderMarkdown(doc string) (string, error) {
 	return reLink.ReplaceAllString(buf.String(), `${1} target="_blank"`), nil
 }
 
+var urlRegexp = regexp.MustCompile(`(?:http[s]?:\/\/.)?(?:www\.)?[-a-zA-Z0-9@%._\+~#=]{2,256}\.[a-z]{2,6}\b(?:[-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)`)
+
 // utils
 func toHTML(content, role string, compacted bool) string {
 	if strings.TrimSpace(content) == "" {
@@ -347,6 +349,9 @@ func toHTML(content, role string, compacted bool) string {
 		if compacted {
 			extra = " compacted"
 		}
+		content = urlRegexp.ReplaceAllStringFunc(content, func(url string) string {
+			return fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, url, url)
+		})
 		return `<pre><code class="tool-response` + extra + `">` + content + `</code></pre>`
 	}
 	if role == "assistant" {

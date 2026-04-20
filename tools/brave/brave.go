@@ -36,7 +36,8 @@ func (Search) Definition() llm.FunctionDefinition {
 	return llm.FunctionDefinition{
 		Name: "web_search",
 		Description: "Search for information on the web using brave.com" +
-			" Returns a Markdown document with the top 10 most relevant links.",
+			" Returns a Markdown document with the top 10 most relevant links." +
+			" Use the web_fetch tool to retrieve the full contents.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

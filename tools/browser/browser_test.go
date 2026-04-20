@@ -33,8 +33,8 @@ func TestBrowserScroll(t *testing.T) {
 	defer browser.Shutdown()
 
 	resp := Open{browser}.Call(context.Background(), marshal(map[string]any{
-		"url":  "https://itsabanana.dev/posts/local_llm_hosting-part1/",
-		"line": 50,
+		"url":       "https://itsabanana.dev/posts/local_llm_hosting-part1/",
+		"startline": 50,
 	}))
 	t.Logf("response:\n%s", resp)
 

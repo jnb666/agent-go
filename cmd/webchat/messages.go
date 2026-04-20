@@ -13,8 +13,8 @@ func DefaultConfig() agents.Config {
 		SystemPrompt: `You are a helpful assistant. The current date is {{ .Time.Format "Monday 2 January 2006" }}.`,
 		Tools: []agents.ToolConfig{
 			{Name: "web_search", Enabled: true},
-			{Name: "browser_open", Enabled: true},
-			{Name: "browser_find", Enabled: true},
+			{Name: "web_fetch", Enabled: true},
+			{Name: "web_find", Enabled: true},
 		},
 	}
 }
